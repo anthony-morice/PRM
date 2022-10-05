@@ -1,12 +1,15 @@
-# Probabilistic Roadmap (PRM)
+# Probabilistic Roadmap (PRM) and Rapidly-Exploring Random Trees (RRTs)
 
 Given an image representing some configuration space, this script generates a
-roadmap to facilitate in path planning between two valid positions.
+roadmap to facilitate in path planning between two valid positions. Two
+different methods for roadmap generation are included: a classic PRM approach,
+and a rapidly-exploring random tree (RRTs) approach.
 
-![Visualization of PRM](images/Figure_1.png)
+### PRM classic approach
+![Visualization of PRM](images/PRM_classic.png)
 
-Note that--in its current implementation--there is no enhancement phase after the
-roadmap has been generated via a random sampling of the configuration space to
-determine vertices, and a KNN search to form valid edges between vertices.
+### RRT approach
+![Visualization of RRT](images/PRM_RRT.png)
 
+Note that there is no enhancement phase after the roadmap has been generated.
 Additionally, no path smoothing has been included.
