@@ -6,8 +6,9 @@ from sklearn.neighbors import NearestNeighbors
 from queue import Queue
 
 class PRM:
-  def __init__(self, cspace):
+  def __init__(self, cspace, n=1000, k=5, rrt_flag=False):
     self.cspace = self.read_image(cspace)
+    self.build_roadmap(n, k, rrt=rrt_flag)
 
   def read_image(self, path):
     #im = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
@@ -47,7 +48,7 @@ class PRM:
           return False
     return True
 
-  def build_roadmap(self, n=1000, k=7):
+  def roadmap_classic(self, n, k):
     # generate random samples in configuration space
     samples = []
     count = 0
@@ -57,6 +58,8 @@ class PRM:
       if not self.obstructed(point[0], point[1]): # discard obstructed points
         samples.append(point)
       count += 1
+    if count == 2 * n:
+      print(f'Note: only {len(samples)} out of {n} vertices were generated for roadmap')
     self.prm_vertices = np.array(samples)
     # attempt to connect each sample to n-nearest neighbors
     self.knn = NearestNeighbors(n_neighbors=k+1)
@@ -69,6 +72,56 @@ class PRM:
           self.prm_edges[i].append(nn)
           self.prm_edges[nn].append(i)
     # enhancement phase? disjoint sets TODO
+
+  def euclid_dist(a, b):
+    return np.linalg.norm(np.array([a[i] - b[i] for i in range(2)]))
+
+  def nearest(samples, point):
+    assert len(samples) > 0
+    distances = np.linalg.norm(np.array(samples) - point, axis=1)
+    return np.argmin(distances)
+
+  def roadmap_rrt(self, n, k, step=0.5):
+    # rapidly-exploring random trees
+    # add tree root
+    samples = []
+    count = 0
+    self.prm_edges = [[]]
+    while count < 100:
+      point = (np.random.randint(0, self.cspace.shape[0]),\
+                np.random.randint(0, self.cspace.shape[1]))
+      if not self.obstructed(point[0], point[1]): # only accept valid point 
+        samples.append(np.array(point))
+        break
+      count += 1
+    if count == 100:
+      print('Error: unable to generate unobstructed tree root for rrt')
+      exit(1)
+    count = 0
+    while (len(samples) < n and count < 2 * n):
+      point = np.array((np.random.randint(0, self.cspace.shape[0]),\
+               np.random.randint(0, self.cspace.shape[1])))
+      if not self.obstructed(point[0], point[1]):
+        # find nearest existing vertex to generated point
+        vertex_near = PRM.nearest(samples, point)
+        # if path not obstructed, take small step towards point and create edge + vertex
+        if self.valid_path(samples[vertex_near], point):
+          samples.append((samples[vertex_near] + (point - samples[vertex_near]) * step).astype(int))
+          self.prm_edges.append([])
+          self.prm_edges[-1].append(vertex_near)
+          self.prm_edges[vertex_near].append(len(self.prm_edges) - 1)
+      count += 1
+    if count == 2 * n:
+      print(f'Note: only {len(samples)} out of {n} vertices were generated for roadmap')
+    self.prm_vertices = np.array(samples)
+
+  def build_roadmap(self, n=1000, k=7, rrt=False):
+    if rrt:
+      self.roadmap_rrt(n,k, step=0.5)
+      self.knn = NearestNeighbors(n_neighbors=k+1)
+      self.knn.fit(self.prm_vertices) # fit to samples
+    else:
+      self.roadmap_classic(n, k)
 
   def view_roadmap(self):
     _, ax = plt.subplots()
@@ -153,8 +206,7 @@ class PRM:
     plt.show()
 
 def main():
-  prm = PRM("./images/test.png")
-  prm.build_roadmap(n=1000, k=5)
+  prm = PRM("./images/test.png", n=1000, rrt_flag=True)
   res, path = prm.get_path((10, 10), (342, 642))
   if res:
     prm.view_path(path)
