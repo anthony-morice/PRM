@@ -3,7 +3,7 @@
 Given an image representing some configuration space, this script generates a
 roadmap to facilitate in path planning between two valid positions. Two
 different methods for roadmap generation are included: a classic PRM approach,
-and a rapidly-exploring random tree (RRTs) approach.
+and a rapidly-exploring random tree (RRT) approach.
 
 ### PRM classic approach
 ![Visualization of PRM](images/PRM_classic.png)
